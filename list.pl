@@ -5,15 +5,29 @@ use warnings;
 
 
 sub list{
+  #replace '~' with home/usrname/
   my ($current_directory, $absolute) = @_;
-  if($absolute){
+  if($current_directory =~ /^~(?<dir>.*)/){
+    $current_directory = "/home/".getpwuid($<).$+{dir};
+  }
+  #add trailing '/'
+  if(!($current_directory =~/.*\/$/)){
+    $current_directory .= '/';
+  }
+
+  if($_[1] eq 'absolute'){
     return absolute_list($current_directory);
   }
+  elsif($_[1] eq 'relative'){
+    ($current_directory =~ /(?<head>.*)(?<start>\/[a-zA-Z0-9\.\_\-\~]+\/$)/);
+    return relative_list($+{start}, $+{head});
+  }
   else{
+    #TODO remove duplicate code here
     $current_directory =~ /(?<head>^\/.*)(?<start>\/[^\0]+$)/;
     return relative_list($+{start}, $+{head});
   }
-} #end list
+}#end list
 
 #generate list of absolute paths
 sub absolute_list{
@@ -44,7 +58,7 @@ return @list;
 sub relative_list{
   my ($current_directory, $head) = @_;
   my @list;
-  print @list,"\n";
+
   opendir my $dir, "$head$current_directory" or die "Cannot open directory: $!";
 
   my @files = readdir $dir;
