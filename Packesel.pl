@@ -165,7 +165,7 @@ print $SPEC_FILE_HANDLE "Name:           $name\n";
 print $SPEC_FILE_HANDLE "Version:        1.0\n";
 print $SPEC_FILE_HANDLE "Release:        0\n";
 print $SPEC_FILE_HANDLE "Summary:        idk, look for a readme\n";
-print $SPEC_FILE_HANDLE "Prefix:         /\n";
+print $SPEC_FILE_HANDLE "Prefix:         /usr\n";
 print $SPEC_FILE_HANDLE "License:        none\n";
 print $SPEC_FILE_HANDLE "Source0:        %{name}.tar.gz\n";
 print $SPEC_FILE_HANDLE "BuildArch:      noarch\n";
@@ -185,6 +185,7 @@ print $SPEC_FILE_HANDLE "\n%clean\n";
 print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
 print $SPEC_FILE_HANDLE "%files\n";
 print $SPEC_FILE_HANDLE "%defattr(-,root,root,-)\n";
+print $SPEC_FILE_HANDLE "/%{name}/\n";
 for my $i(@files){
     $i =~ /^\/.*\/(?<current_file>.*$)/;
     print $SPEC_FILE_HANDLE "/%{name}/$+{current_file}\n";
