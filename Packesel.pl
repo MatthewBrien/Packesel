@@ -119,21 +119,21 @@ sub set_source_type{
 sub create_working_dir{
     $working_directory .= "~/rpmbuild/SOURCES/$name";
     quiet_system("mkdir $working_directory");
-    say ("working_directory : $working_directory");
 }
 
 #remove files and folders created during process
 sub clean_up{
   quiet_system("rm -rf $working_directory");
-  #quiet_system("rm -rf $spec_file_location");
-  #quiet_system("rm -rf $build_source_location");
+  quiet_system("rm -rf $spec_file_location");
+  quiet_system("rm -rf $build_source_location");
+  quiet_system("rm -rf /home/".getpwuid($<)."/rpmbuild/BUILD/$name");
 }
 
 set_source();
 set_name();
 create_working_dir();
 $spec_file_location = "/home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec";
-$build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name-1.tar.gz";
+$build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name.tar.gz";
 
 #if source is git repo, clone
 if($source_type eq 'git'){
@@ -150,20 +150,16 @@ if($source_type eq 'git'){
   quiet_system("tar czvf $build_source_location $working_directory");
 }
 else{
-  @files = list($source);
-  print "source : $source\n";
-  print "build source location: $build_source_location\n";
+
   quiet_system("cp -a $source/. ~/rpmbuild/SOURCES/$name");
+
+  @files = list( "~/rpmbuild/SOURCES/$name", "relative");
+
   quiet_system("tar czvf $working_directory.tar.gz -C ~/rpmbuild/SOURCES/ $name" );
 }
 
-for my $i(@files){
-  print("$i\n");
-}
 
 #generate spec file
-
-
 open( $SPEC_FILE_HANDLE,">", $spec_file_location) or die "couldn't not open file '$spec_file_location $!'";
 print $SPEC_FILE_HANDLE "Name:           $name\n";
 print $SPEC_FILE_HANDLE "Version:        1.0\n";
@@ -179,10 +175,10 @@ print $SPEC_FILE_HANDLE "\n%prep\n\n";
 print $SPEC_FILE_HANDLE "\n%setup -n %{name}\n\n";
 print $SPEC_FILE_HANDLE "\n%build\n\n";
 print $SPEC_FILE_HANDLE "\n%install\n";
-print $SPEC_FILE_HANDLE "mkdir -p \$RPM_BUILD_ROOT\n";
+print $SPEC_FILE_HANDLE "mkdir -p \$RPM_BUILD_ROOT/%{name}\n";
 for my $i (@files){
-  $i =~ /.*\/(?<current_file>[a-zA-Z0-9.]+$)/;
-print $SPEC_FILE_HANDLE "install $+{current_file} \$RPM_BUILD_ROOT\n";
+  $i =~ /^\/.*\/(?<current_file>.*+$)/;
+print $SPEC_FILE_HANDLE "install $+{current_file} \$RPM_BUILD_ROOT/%{name}\n";
 }
 
 print $SPEC_FILE_HANDLE "\n%clean\n";
@@ -190,14 +186,17 @@ print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
 print $SPEC_FILE_HANDLE "%files\n";
 print $SPEC_FILE_HANDLE "%defattr(-,root,root,-)\n";
 for my $i(@files){
-    $i =~ /^.*(?<current_file>\/[a-zA-Z0-9.]+$)/;
-  print $SPEC_FILE_HANDLE "$+{current_file}\n";
+    $i =~ /^\/.*\/(?<current_file>.*$)/;
+    print $SPEC_FILE_HANDLE "/%{name}/$+{current_file}\n";
 }
 print $SPEC_FILE_HANDLE "\n\n%doc\n";
 print $SPEC_FILE_HANDLE "\n\n%changelog\n";
 #* Thu Jul 27 2017 rpmmaker
 #-
 close($SPEC_FILE_HANDLE);
+
+quiet_system("rpmbuild -v -bb /home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec");
+
 clean_up();
 
 #setup temp folder
