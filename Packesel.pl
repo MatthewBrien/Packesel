@@ -165,7 +165,7 @@ print $SPEC_FILE_HANDLE "Name:           $name\n";
 print $SPEC_FILE_HANDLE "Version:        1.0\n";
 print $SPEC_FILE_HANDLE "Release:        0\n";
 print $SPEC_FILE_HANDLE "Summary:        idk, look for a readme\n";
-print $SPEC_FILE_HANDLE "Prefix:         /usr\n";
+print $SPEC_FILE_HANDLE "Prefix:         \/%{name}\n";
 print $SPEC_FILE_HANDLE "License:        none\n";
 print $SPEC_FILE_HANDLE "Source0:        %{name}.tar.gz\n";
 print $SPEC_FILE_HANDLE "BuildArch:      noarch\n";
