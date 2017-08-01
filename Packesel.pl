@@ -117,7 +117,7 @@ sub set_source_type{
 }
 
 sub create_working_dir{
-    $working_directory .= "/tmp/$name";
+    $working_directory .= "~/rpmbuild/SOURCES/$name";
     quiet_system("mkdir $working_directory");
     say ("working_directory : $working_directory");
 }
@@ -133,7 +133,7 @@ set_source();
 set_name();
 create_working_dir();
 $spec_file_location = "/home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec";
-$build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name-1.0.tar.gz";
+$build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name-1.tar.gz";
 
 #if source is git repo, clone
 if($source_type eq 'git'){
@@ -153,8 +153,8 @@ else{
   @files = list($source);
   print "source : $source\n";
   print "build source location: $build_source_location\n";
-  quiet_system("cp -r $source /tmp/$name/$name-1.0");
-  quiet_system("tar czvf $build_source_location -C $working_directory/ .");
+  quiet_system("cp -a $source/. ~/rpmbuild/SOURCES/$name");
+  quiet_system("tar czvf $working_directory.tar.gz -C ~/rpmbuild/SOURCES/ $name" );
 }
 
 for my $i(@files){
@@ -167,34 +167,34 @@ for my $i(@files){
 open( $SPEC_FILE_HANDLE,">", $spec_file_location) or die "couldn't not open file '$spec_file_location $!'";
 print $SPEC_FILE_HANDLE "Name:           $name\n";
 print $SPEC_FILE_HANDLE "Version:        1.0\n";
-print $SPEC_FILE_HANDLE "Release:        1%{?dist}\n";
+print $SPEC_FILE_HANDLE "Release:        0\n";
 print $SPEC_FILE_HANDLE "Summary:        idk, look for a readme\n";
 print $SPEC_FILE_HANDLE "Prefix:         /\n";
-print $SPEC_FILE_HANDLE "License:        GPL\n";
-print $SPEC_FILE_HANDLE "Source0:        $name-1.0.tar.gz\n";
+print $SPEC_FILE_HANDLE "License:        none\n";
+print $SPEC_FILE_HANDLE "Source0:        %{name}.tar.gz\n";
 print $SPEC_FILE_HANDLE "BuildArch:      noarch\n";
-print $SPEC_FILE_HANDLE "%description    \nmove along, nothing to see here\n";
-print $SPEC_FILE_HANDLE "\n";
-print $SPEC_FILE_HANDLE "%prep\n";
-print $SPEC_FILE_HANDLE "%setup -q\n";
-print $SPEC_FILE_HANDLE "%install\n";
-#print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
-#print $SPEC_FILE_HANDLE "install -d \$RPM_BUILD_ROOT/$name\n";
+print $SPEC_FILE_HANDLE "BuildRoot:      %{_tmppath}/%{name}-build";
+print $SPEC_FILE_HANDLE "\n%description\nan RPM built by Packesel\n\n";
+print $SPEC_FILE_HANDLE "\n%prep\n\n";
+print $SPEC_FILE_HANDLE "\n%setup -n %{name}\n\n";
+print $SPEC_FILE_HANDLE "\n%build\n\n";
+print $SPEC_FILE_HANDLE "\n%install\n";
+print $SPEC_FILE_HANDLE "mkdir -p \$RPM_BUILD_ROOT\n";
 for my $i (@files){
-  $i =~ /.*(?<current_file>\/[a-zA-Z0-9.]+$)/;
-#print $SPEC_FILE_HANDLE "install $+{current_file} \$RPM_BUILD_ROOT$i\n";
+  $i =~ /.*\/(?<current_file>[a-zA-Z0-9.]+$)/;
+print $SPEC_FILE_HANDLE "install $+{current_file} \$RPM_BUILD_ROOT\n";
 }
-#install myscript1.sh $RPM_BUILD_ROOT/myscript/myscript1.sh
-#install myscript2.sh $RPM_BUILD_ROOT/myscript/myscript2.sh
-print $SPEC_FILE_HANDLE "%clean\n";
-#print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
+
+print $SPEC_FILE_HANDLE "\n%clean\n";
+print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
 print $SPEC_FILE_HANDLE "%files\n";
 print $SPEC_FILE_HANDLE "%defattr(-,root,root,-)\n";
 for my $i(@files){
-#  print $SPEC_FILE_HANDLE "$i\n";
+    $i =~ /^.*(?<current_file>\/[a-zA-Z0-9.]+$)/;
+  print $SPEC_FILE_HANDLE "$+{current_file}\n";
 }
-print $SPEC_FILE_HANDLE "%doc\n";
-print $SPEC_FILE_HANDLE "%changelog\n";
+print $SPEC_FILE_HANDLE "\n\n%doc\n";
+print $SPEC_FILE_HANDLE "\n\n%changelog\n";
 #* Thu Jul 27 2017 rpmmaker
 #-
 close($SPEC_FILE_HANDLE);
