@@ -11,7 +11,7 @@ require "/home/rpmmaker/packesel/list.pl";
 my $source = '';
 my $name = '';
 my $verbose = '';
-
+my $release_number = 0;
 my $timestamp = time();
 my $source_type = '';
 my $working_directory = '';
@@ -23,7 +23,8 @@ my $build_source_location = '';
 GetOptions(
 'source=s' => \$source,
 'name=s' => \$name,
-'verbose' => \$verbose
+'verbose' => \$verbose,
+'release' => \$release_number
 ) or die "Usage: $0 --source Dir or Git Repo, --name, --verbose";
 
 sub say{ print @_, "\n" }
@@ -108,6 +109,23 @@ sub set_source{
     exit;
   }
 }
+
+sub set_release_number {
+  #check if release value passed is valid
+  #if invalid, set to zero
+  if(!($release_number =~ /^[0-9]$/)){
+    say "invalid release value $release_number";
+    say "setting release to 0, which may break rpm update";
+    $release_number = 0;
+  }
+  elsif(!$release_number && $source_type eq 'git'){
+    $release_number =  qx/(cd $working_directory && git rev-list HEAD --count)/;
+  }
+  else{
+    $release_number = 0;
+  }
+
+}
 #set source type
 sub set_source_type{
   if(is_git_url($source)){
@@ -137,6 +155,7 @@ create_working_dir();
 $spec_file_location = "/home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec";
 $build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name.tar.gz";
 
+
 #TODO delete directory in SOURCES if it exists
 #list files, clone, copy, and zip
 if($source_type eq 'git'){
@@ -152,12 +171,12 @@ else{
 
   quiet_system("tar czvf $working_directory.tar.gz -C ~/rpmbuild/SOURCES/ $name" );
 }
-
+set_release_number();
 #generate spec file
 open( $SPEC_FILE_HANDLE ,">", $spec_file_location) or die "couldn't not open file '$spec_file_location $!'";
 print $SPEC_FILE_HANDLE "Name:           $name\n";
 print $SPEC_FILE_HANDLE "Version:        1.0\n";
-print $SPEC_FILE_HANDLE "Release:        0\n";
+print $SPEC_FILE_HANDLE "Release:        $release_number\n";
 print $SPEC_FILE_HANDLE "Summary:        idk, look for a readme\n";
 print $SPEC_FILE_HANDLE "Prefix:         \/%{name}\n";
 print $SPEC_FILE_HANDLE "License:        none\n";
@@ -194,9 +213,7 @@ print $SPEC_FILE_HANDLE "\n%files\n";
 print $SPEC_FILE_HANDLE "\n%defattr(-,root,root,-)\n";
 print $SPEC_FILE_HANDLE "/%{name}/\n";
 
-for my $i(@files){
-  print $SPEC_FILE_HANDLE "/%{name}/$i\n"
-}
+
 
 print $SPEC_FILE_HANDLE "\n\n%doc\n";
 print $SPEC_FILE_HANDLE "\n\n%changelog\n";
