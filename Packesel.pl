@@ -76,8 +76,10 @@ sub is_git_repo{
 #set name for the rpm, it not a git repo, and name was not supplied, create new name
 sub set_name{
   if(is_git_url($source)){
+    print "Setting NAME\n";
     if($source =~ /^http.*\/(?<name>.*).git$/){
       $name = $+{name};
+      print "name is $name\n";
     }
   }
   #TODO capture name of deepest directory for name
@@ -124,7 +126,7 @@ sub create_working_dir{
 #remove files and folders created during process
 sub clean_up{
   quiet_system("rm -rf $working_directory");
-  quiet_system("rm -rf $spec_file_location");
+  #quiet_system("rm -rf $spec_file_location");
   quiet_system("rm -rf $build_source_location");
   quiet_system("rm -rf /home/".getpwuid($<)."/rpmbuild/BUILD/$name");
 }
@@ -135,32 +137,24 @@ create_working_dir();
 $spec_file_location = "/home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec";
 $build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name.tar.gz";
 
-#if source is git repo, clone
+#TODO delete directory in SOURCES if it exists
+#list files, clone, copy, and zip
 if($source_type eq 'git'){
   if(quiet_system("git clone $source $working_directory")){
     say ("unable to access $source");
     exit;
   }
-}
 
-#list files, and zip
-
-if($source_type eq 'git'){
-  @files = list($working_directory);
-  quiet_system("tar czvf $build_source_location $working_directory");
+  quiet_system("tar czvf $build_source_location -C ~/rpmbuild/SOURCES/ $name");
 }
 else{
-
   quiet_system("cp -a $source/. ~/rpmbuild/SOURCES/$name");
-
-  @files = list( "~/rpmbuild/SOURCES/$name", "relative");
 
   quiet_system("tar czvf $working_directory.tar.gz -C ~/rpmbuild/SOURCES/ $name" );
 }
 
-
 #generate spec file
-open( $SPEC_FILE_HANDLE,">", $spec_file_location) or die "couldn't not open file '$spec_file_location $!'";
+open( $SPEC_FILE_HANDLE ,">", $spec_file_location) or die "couldn't not open file '$spec_file_location $!'";
 print $SPEC_FILE_HANDLE "Name:           $name\n";
 print $SPEC_FILE_HANDLE "Version:        1.0\n";
 print $SPEC_FILE_HANDLE "Release:        0\n";
@@ -176,20 +170,34 @@ print $SPEC_FILE_HANDLE "\n%setup -n %{name}\n\n";
 print $SPEC_FILE_HANDLE "\n%build\n\n";
 print $SPEC_FILE_HANDLE "\n%install\n";
 print $SPEC_FILE_HANDLE "mkdir -p \$RPM_BUILD_ROOT/%{name}\n";
-for my $i (@files){
-  $i =~ /^\/.*\/(?<current_file>.*+$)/;
-print $SPEC_FILE_HANDLE "install $+{current_file} \$RPM_BUILD_ROOT/%{name}\n";
+my @directories = list("~rpmbuild/SOURCES/$name", "directories_relative");
+
+for my $i(@directories){
+  print $SPEC_FILE_HANDLE "mkdir -p \$RPM_BUILD_ROOT/%{name}/$i\n";
 }
+
+@files = list("~rpmbuild/SOURCES/$name", "files_relative");
+for my $i(@files){
+
+  if ($i =~ /(?<directory>^.*)\//){
+      print $SPEC_FILE_HANDLE "install $i \$RPM_BUILD_ROOT/%{name}/$+{directory}\n";
+  }
+  else{
+    print $SPEC_FILE_HANDLE "install $i \$RPM_BUILD_ROOT/%{name}/\n"
+  }
+}
+
 
 print $SPEC_FILE_HANDLE "\n%clean\n";
 print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
-print $SPEC_FILE_HANDLE "%files\n";
-print $SPEC_FILE_HANDLE "%defattr(-,root,root,-)\n";
+print $SPEC_FILE_HANDLE "\n%files\n";
+print $SPEC_FILE_HANDLE "\n%defattr(-,root,root,-)\n";
 print $SPEC_FILE_HANDLE "/%{name}/\n";
+
 for my $i(@files){
-    $i =~ /^\/.*\/(?<current_file>.*$)/;
-    print $SPEC_FILE_HANDLE "/%{name}/$+{current_file}\n";
+  print $SPEC_FILE_HANDLE "/%{name}/$i\n"
 }
+
 print $SPEC_FILE_HANDLE "\n\n%doc\n";
 print $SPEC_FILE_HANDLE "\n\n%changelog\n";
 #* Thu Jul 27 2017 rpmmaker
