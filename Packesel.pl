@@ -77,15 +77,13 @@ sub is_git_repo{
 #set name for the rpm, it not a git repo, and name was not supplied, create new name
 sub set_name{
   if(is_git_url($source)){
-    print "Setting NAME\n";
     if($source =~ /^http.*\/(?<name>.*).git$/){
       $name = $+{name};
-      print "name is $name\n";
     }
   }
-  #TODO capture name of deepest directory for name
-  elsif(is_valid_path($source)){
+    elsif(is_valid_path($source)){
     if(!$name){
+      $source =~ //;
       $name = "newRPM".$timestamp;
     }
   }
@@ -95,24 +93,26 @@ sub set_name{
     }
   }
 }
+
 #validate user supplied path
 sub set_source{
+
   if(!$source){
     $source = getcwd;
-    quiet_system("echo 'No path specified, current directory selected.'");
+    say "No path specified, current directory selected.";
   }
   set_source_type($source);
   if($source_type eq "dir" && !is_valid_path($source)){
-    $source = getcwd;
     say ("$source is not a valid directory");
     say ("Use -source <git-repo or directory-path> to specify directory");
     exit;
   }
+
 }
 
+#check if release value passed is valid. if invalid, set to zero
 sub set_release_number {
-  #check if release value passed is valid
-  #if invalid, set to zero
+
   if(!($release_number =~ /^[0-9]$/)){
     say "invalid release value $release_number";
     say "setting release to 0, which may break rpm update";
@@ -126,25 +126,46 @@ sub set_release_number {
   }
 
 }
+
 #set source type
 sub set_source_type{
+
   if(is_git_url($source)){
+    $source_type = "git";
+  }
+  elsif(is_git_repo($source)){
     $source_type = "git";
   }
   else{
     $source_type = "dir";
   }
+
 }
 
+#create a temporary location to hold files in RPM
 sub create_working_dir{
     $working_directory .= "~/rpmbuild/SOURCES/$name";
     quiet_system("mkdir $working_directory");
 }
 
+#clone a git repo, or copy a directory to a temporary location
+sub copy_source{
+  if($source_type eq 'git' && is_git_url($source)){
+    if(quiet_system("git clone $source $working_directory")){
+      say ("unable to access $source");
+      exit;
+    }
+    quiet_system("tar czvf $build_source_location -C ~/rpmbuild/SOURCES/ $name");
+  }
+  else{
+    quiet_system("cp -a $source/. ~/rpmbuild/SOURCES/$name");
+    quiet_system("tar czvf $working_directory.tar.gz -C ~/rpmbuild/SOURCES/ $name" );
+  }
+}
 #remove files and folders created during process
 sub clean_up{
   quiet_system("rm -rf $working_directory");
-  #quiet_system("rm -rf $spec_file_location");
+  quiet_system("rm -rf $spec_file_location");
   quiet_system("rm -rf $build_source_location");
   quiet_system("rm -rf /home/".getpwuid($<)."/rpmbuild/BUILD/$name");
 }
@@ -154,24 +175,11 @@ set_name();
 create_working_dir();
 $spec_file_location = "/home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec";
 $build_source_location = "/home/".getpwuid($<)."/rpmbuild/SOURCES/$name.tar.gz";
-
+copy_source();
+set_release_number();
 
 #TODO delete directory in SOURCES if it exists
-#list files, clone, copy, and zip
-if($source_type eq 'git'){
-  if(quiet_system("git clone $source $working_directory")){
-    say ("unable to access $source");
-    exit;
-  }
 
-  quiet_system("tar czvf $build_source_location -C ~/rpmbuild/SOURCES/ $name");
-}
-else{
-  quiet_system("cp -a $source/. ~/rpmbuild/SOURCES/$name");
-
-  quiet_system("tar czvf $working_directory.tar.gz -C ~/rpmbuild/SOURCES/ $name" );
-}
-set_release_number();
 #generate spec file
 open( $SPEC_FILE_HANDLE ,">", $spec_file_location) or die "couldn't not open file '$spec_file_location $!'";
 print $SPEC_FILE_HANDLE "Name:           $name\n";
@@ -205,16 +213,11 @@ for my $i(@files){
     print $SPEC_FILE_HANDLE "install $i \$RPM_BUILD_ROOT/%{name}/\n"
   }
 }
-
-
 print $SPEC_FILE_HANDLE "\n%clean\n";
 print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
 print $SPEC_FILE_HANDLE "\n%files\n";
 print $SPEC_FILE_HANDLE "\n%defattr(-,root,root,-)\n";
 print $SPEC_FILE_HANDLE "/%{name}/\n";
-
-
-
 print $SPEC_FILE_HANDLE "\n\n%doc\n";
 print $SPEC_FILE_HANDLE "\n\n%changelog\n";
 #* Thu Jul 27 2017 rpmmaker
@@ -224,5 +227,4 @@ close($SPEC_FILE_HANDLE);
 quiet_system("rpmbuild -v -bb /home/".getpwuid($<)."/rpmbuild/SPECS/$name.spec");
 
 clean_up();
-
-#setup temp folder
+print "rpm $name created in /home/".getpwuid($<)."/rpmbuild/RPMS/noarch/\n";
