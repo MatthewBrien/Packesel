@@ -1,1 +1,28 @@
 A tool for zipping folders and sharing via rpm
+
+Optional Parameters:
+
+Source - location of files to package.
+      usage:
+      -S|ource /absolute/directory/path
+      or
+      -S|ource https://www.github.com/user/repo.git
+
+Name - name for the rpm - defaults
+      usage:
+     -N|ame awesome_project
+
+Verbose - flag to see Packesel output
+      usage:
+      -V|erbose
+
+Release - release number, defaults to 0, or the number of git commits in a git repo
+      usage :
+      -R|elease 14
+
+installing rpm on target system
+rpm -i <name>-1.0-<release>.noarch.rpm  --prefix="/absolute/directory/path/to/install/to"
+
+updating on target systems
+
+rpm -U <name>-1.0-<release>.noarch.rpm  --prefix="/absolute/directory/path/to/install/to"

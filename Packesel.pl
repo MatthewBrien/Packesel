@@ -83,8 +83,15 @@ sub set_name{
   }
     elsif(is_valid_path($source)){
     if(!$name){
-      $source =~ //;
-      $name = "newRPM".$timestamp;
+      #check if dir has trailing /, match last directory
+      if(($source =~ /\/$/)){
+        $source =~ /\/(?<name>[0-9a-zA-Z\_\.\-]+)\/$/;
+        $name = $+{name};
+      }
+      else{
+        $source =~ /\/(?<name>[0-9a-zA-Z\_\.\-]+)$/;
+        $name = $+{name};
+      }
     }
   }
   else{
