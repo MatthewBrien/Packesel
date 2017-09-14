@@ -5,7 +5,8 @@ use warnings;
 use Getopt::Long qw(GetOptions);
 use Cwd 'abs_path';
 use Cwd 'getcwd';
-require "/home/rpmmaker/packesel/list.pl";
+#TODO make this relative to Packesel.pl
+require "./list.pl";
 
 #command line default arguments
 my $source = '';
@@ -15,7 +16,7 @@ my $release_number = 0;
 my $timestamp = time();
 my $source_type = '';
 my $working_directory = '';
-my @files;
+my @files;e
 my $SPEC_FILE_HANDLE;
 my $spec_file_location = '';
 my $build_source_location = '';
@@ -220,6 +221,7 @@ for my $i(@files){
     print $SPEC_FILE_HANDLE "install $i \$RPM_BUILD_ROOT/%{name}/\n"
   }
 }
+
 print $SPEC_FILE_HANDLE "\n%clean\n";
 print $SPEC_FILE_HANDLE "rm -rf \$RPM_BUILD_ROOT\n";
 print $SPEC_FILE_HANDLE "\n%files\n";
